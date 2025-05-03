@@ -41,36 +41,55 @@ class ProcessRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws InterruptedException {
-        ProtoPayload.ProcessId hubInfo = ProtoPayload.ProcessId
-                .newBuilder()
+        ProtoPayload.ProcessId hubInfo = buildHubInfo();
+
+        List<Integer> processPorts = parseProcessPorts(processPortsStr);
+        List<ProtoPayload.ProcessId> processIds = buildProcessIds(processPorts);
+
+        List<Thread> processThreads = startProcessThreads(processIds, hubInfo);
+
+        waitForProcesses(processThreads);
+    }
+
+    private ProtoPayload.ProcessId buildHubInfo() {
+        return ProtoPayload.ProcessId.newBuilder()
                 .setHost(hubHost)
                 .setPort(hubPort)
                 .setOwner(Util.HUB_ID)
                 .build();
+    }
 
-        List<Integer> processesPorts = new ArrayList<>();
-        Arrays.stream(processPortsStr.split(","))
+    private List<Integer> parseProcessPorts(String portsStr) {
+        return Arrays.stream(portsStr.split(","))
                 .map(Integer::parseInt)
-                .forEach(processesPorts::add);
+                .toList();
+    }
 
-        List<ProtoPayload.ProcessId> processIds = processesPorts.stream()
+    private List<ProtoPayload.ProcessId> buildProcessIds(List<Integer> ports) {
+        return ports.stream()
                 .map(port -> ProtoPayload.ProcessId.newBuilder()
                         .setHost(processHost)
                         .setPort(port)
                         .setOwner(processOwner)
-                        .setIndex(processesPorts.indexOf(port) + 1)
+                        .setIndex(ports.indexOf(port) + 1)
                         .build())
                 .toList();
+    }
 
-        List<Thread> processes = new ArrayList<>();
-        for (ProtoPayload.ProcessId protoProcessId : processIds) {
-            Thread process = new Thread(new Process(protoProcessId, hubInfo), processHost + ":" + protoProcessId.getPort());
-            process.start();
-            processes.add(process);
+    private List<Thread> startProcessThreads(List<ProtoPayload.ProcessId> processIds, ProtoPayload.ProcessId hubInfo) {
+        List<Thread> threads = new ArrayList<>();
+        for (ProtoPayload.ProcessId processId : processIds) {
+            Thread thread = new Thread(new Process(processId, hubInfo), processHost + ":" + processId.getPort());
+            thread.start();
+            threads.add(thread);
         }
+        return threads;
+    }
 
-        for (Thread process : processes) {
-            process.join();
+    private void waitForProcesses(List<Thread> threads) throws InterruptedException {
+        for (Thread thread : threads) {
+            thread.join();
         }
     }
+
 }

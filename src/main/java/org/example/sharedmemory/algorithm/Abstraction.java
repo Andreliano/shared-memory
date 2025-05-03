@@ -1,11 +1,11 @@
 package org.example.sharedmemory.algorithm;
 
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
 import org.example.sharedmemory.communication.ProtoPayload;
 import org.example.sharedmemory.domain.Process;
 
-@Getter
+@Data
 @AllArgsConstructor
 public abstract class Abstraction {
     protected String abstractionId;

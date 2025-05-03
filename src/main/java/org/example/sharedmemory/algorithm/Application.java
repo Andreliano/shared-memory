@@ -192,7 +192,7 @@ public class Application extends Abstraction {
     }
 
     private void registerCoreAbstractions(Process process) {
-        process.registerAbstraction(new BestEffortBroadcast(Util.getChildAbstractionId(abstractionId, AbstractionType.BEB), process)); // register app.beb abstraction
+        process.registerAbstraction(new BEB(Util.getChildAbstractionId(abstractionId, AbstractionType.BEB), process)); // register app.beb abstraction
         process.registerAbstraction(new PerfectLink(Util.getChildAbstractionId(abstractionId, AbstractionType.PL), process)); // register app.pl abstraction
     }
 }

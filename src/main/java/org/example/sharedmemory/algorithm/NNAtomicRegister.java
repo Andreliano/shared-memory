@@ -38,36 +38,34 @@ public class NNAtomicRegister extends Abstraction {
 
     @Override
     public boolean handle(ProtoPayload.Message message) {
-        switch (message.getType()) {
-            case NNAR_READ:
-                log.info("READ!!!");
+        return switch (message.getType()) {
+            case NNAR_READ -> {
                 handleReadRequest();
-                return true;
-            case NNAR_WRITE:
-                log.info("WRITE!!!");
+                yield true;
+            }
+            case NNAR_WRITE -> {
                 handleWriteRequest(message.getNnarWrite());
-                return true;
-            case BEB_DELIVER:
-                log.info("BROADCAST!!!");
+                yield true;
+            }
+            case BEB_DELIVER -> {
                 handleBebDeliver(message.getBebDeliver());
-                return true;
-            case PL_DELIVER:
-                log.info("PL DELIVER!!!");
+                yield true;
+            }
+            case PL_DELIVER -> {
                 handlePlDeliver(message.getPlDeliver());
-                return true;
-            default:
-                log.info("DEFAULT!!!");
-                return false;
-        }
+                yield true;
+            }
+            default -> false;
+        };
     }
 
     private void handleReadRequest() {
-        log.info("Handling NNAR_READ");
+        log.info("Handling NNAR_READ request");
         initializeRead(true, Util.buildUndefinedValue());
     }
 
     private void handleWriteRequest(ProtoPayload.NnarWrite write) {
-        log.info("Handling NNAR_WRITE");
+        log.info("Handling NNAR_WRITE request with value: {}", write.getValue().getV());
         ProtoPayload.Value value = ProtoPayload.Value.newBuilder()
                 .setV(write.getValue().getV())
                 .setDefined(true)
@@ -123,6 +121,8 @@ public class NNAtomicRegister extends Abstraction {
 
     private void handleInternalWrite(ProtoPayload.ProcessId sender, int readId, NNARValue newValue) {
         if (shouldUpdateValue(newValue)) {
+            log.info("Updating current value to timestamp = {}, writerRank = {}, value = {}",
+                    newValue.getTimestamp(), newValue.getWriterRank(), newValue.getValue().getV());
             currentValue = newValue;
         }
 
@@ -174,6 +174,9 @@ public class NNAtomicRegister extends Abstraction {
                     .setValue(isReadInProgress ? highest.getValue() : writeValue)
                     .build();
 
+            log.info("Broadcasting internal write for readId {} with value = {}", readId,
+                    writeMsg.getValue().getV());
+
             broadcast(buildMessage(ProtoPayload.Message.Type.NNAR_INTERNAL_WRITE)
                     .setNnarInternalWrite(writeMsg)
                     .build());
@@ -192,11 +195,13 @@ public class NNAtomicRegister extends Abstraction {
                         .setNnarReadReturn(ProtoPayload.NnarReadReturn.newBuilder().setValue(readResult).build())
                         .setToAbstractionId(Util.getParentAbstractionId(this.abstractionId))
                         .build();
+                log.info("Completed NNAR_READ with value = {}", readResult.getV());
             } else {
                 msg = buildMessage(ProtoPayload.Message.Type.NNAR_WRITE_RETURN)
                         .setNnarWriteReturn(ProtoPayload.NnarWriteReturn.newBuilder().build())
                         .setToAbstractionId(Util.getParentAbstractionId(this.abstractionId))
                         .build();
+                log.info("Completed NNAR_WRITE");
             }
 
             process.addMessageToQueue(msg);
@@ -247,7 +252,7 @@ public class NNAtomicRegister extends Abstraction {
 
     private void registerCoreAbstractions(Process process) {
         log.info("Registering abstractions for process: {}", process.getSystemId());
-        process.registerAbstraction(new BestEffortBroadcast(Util.getChildAbstractionId(abstractionId, AbstractionType.BEB), process));
+        process.registerAbstraction(new BEB(Util.getChildAbstractionId(abstractionId, AbstractionType.BEB), process));
         process.registerAbstraction(new PerfectLink(Util.getChildAbstractionId(abstractionId, AbstractionType.PL), process));
     }
 }

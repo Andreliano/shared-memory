@@ -1,29 +1,40 @@
 package org.example.sharedmemory.algorithm;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.sharedmemory.communication.PerfectLink;
 import org.example.sharedmemory.communication.ProtoPayload;
 import org.example.sharedmemory.domain.AbstractionType;
 import org.example.sharedmemory.domain.Process;
 import org.example.sharedmemory.util.Util;
 
-public class BestEffortBroadcast extends Abstraction {
-    public BestEffortBroadcast(String abstractionId, Process process) {
+@Slf4j
+public class BEB extends Abstraction {
+    public BEB(String abstractionId, Process process) {
         super(abstractionId, process);
         registerChild(AbstractionType.PL, PerfectLink::new);
     }
 
     @Override
     public boolean handle(ProtoPayload.Message message) {
+        log.info("Handling message - type: {}, from: {}, to: {}, hashCode: {}",
+                message.getType(), message.getFromAbstractionId(),
+                message.getToAbstractionId(), message.hashCode());
+
         return switch (message.getType()) {
             case BEB_BROADCAST -> {
+                log.info("Received BEB_BROADCAST from: {}", message.getFromAbstractionId());
                 handleBebBroadcast(message.getBebBroadcast());
                 yield true;
             }
             case PL_DELIVER -> {
+                log.info("Received PL_DELIVER from: {}", message.getPlDeliver().getSender().getRank());
                 triggerBebDeliver(message.getPlDeliver().getMessage(), message.getPlDeliver().getSender());
                 yield true;
             }
-            default -> false;
+            default -> {
+                log.warn("Unhandled message type: {}", message.getType());
+                yield false;
+            }
         };
     }
 

@@ -62,7 +62,13 @@ public class Process implements Runnable {
                 continue;
             }
 
-            log.info("messageType: {} | fromAbstractionId: {} | toAbstractionId: {} | hashCode: {}", message.getType(), message.getFromAbstractionId(), message.getToAbstractionId(), message.hashCode());
+            log.info("type={}, from={}, to={}, hash={}",
+                    message.getType(),
+                    message.getFromAbstractionId(),
+                    message.getToAbstractionId(),
+                    message.hashCode());
+
+            log.info("Current abstractions: {}", abstractions);
 
             ProtoPayload.Message innerMessage = message.getNetworkMessage().getMessage();
 
