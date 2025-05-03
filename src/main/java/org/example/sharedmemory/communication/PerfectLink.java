@@ -31,14 +31,14 @@ public class PerfectLink extends Abstraction {
         ProtoPayload.ProcessId sender = process.getProcess();
         ProtoPayload.ProcessId destination = plSendMessage.getDestination();
 
-        ProtoPayload.NetworkMessage networkMessage = ProtoPayload.NetworkMessage
+        var networkMessage = ProtoPayload.NetworkMessage
                 .newBuilder()
                 .setSenderHost(sender.getHost())
                 .setSenderListeningPort(sender.getPort())
                 .setMessage(plSendMessage.getMessage())
                 .build();
 
-        ProtoPayload.Message sentNetworkMessage = ProtoPayload.Message
+        var sentNetworkMessage = ProtoPayload.Message
                 .newBuilder()
                 .setType(ProtoPayload.Message.Type.NETWORK_MESSAGE)
                 .setNetworkMessage(networkMessage)
@@ -61,7 +61,7 @@ public class PerfectLink extends Abstraction {
 
         ProtoPayload.PlDeliver plDeliver = plDeliverBuilder.build();
 
-        ProtoPayload.Message message = ProtoPayload.Message
+        var message = ProtoPayload.Message
                 .newBuilder()
                 .setType(ProtoPayload.Message.Type.PL_DELIVER)
                 .setPlDeliver(plDeliver)

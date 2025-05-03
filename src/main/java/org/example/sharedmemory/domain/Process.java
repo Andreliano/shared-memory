@@ -127,13 +127,13 @@ public class Process implements Runnable {
     }
 
     private void registerToTheHub() {
-        ProtoPayload.ProcRegistration procRegistration = ProtoPayload.ProcRegistration
+        var procRegistration = ProtoPayload.ProcRegistration
                 .newBuilder()
                 .setOwner(process.getOwner())
                 .setIndex(process.getIndex())
                 .build();
 
-        ProtoPayload.Message procRegistrationMessage = ProtoPayload.Message
+        var procRegistrationMessage = ProtoPayload.Message
                 .newBuilder()
                 .setType(ProtoPayload.Message.Type.PROC_REGISTRATION)
                 .setProcRegistration(procRegistration)
@@ -141,14 +141,14 @@ public class Process implements Runnable {
                 .setToAbstractionId(AbstractionType.APP.getKey())
                 .build();
 
-        ProtoPayload.NetworkMessage networkMessage = ProtoPayload.NetworkMessage
+        var networkMessage = ProtoPayload.NetworkMessage
                 .newBuilder()
                 .setSenderHost(process.getHost())
                 .setSenderListeningPort(process.getPort())
                 .setMessage(procRegistrationMessage)
                 .build();
 
-        ProtoPayload.Message outerMessage = ProtoPayload.Message
+        var outerMessage = ProtoPayload.Message
                 .newBuilder()
                 .setType(ProtoPayload.Message.Type.NETWORK_MESSAGE)
                 .setNetworkMessage(networkMessage)

@@ -11,51 +11,62 @@ import org.example.sharedmemory.util.Util;
 public class Application extends Abstraction {
     public Application(String abstractionId, Process process) {
         super(abstractionId, process);
-        process.registerAbstraction(new BestEffortBroadcast(Util.getChildAbstractionId(abstractionId, AbstractionType.BEB), process)); // register app.beb abstraction
-        process.registerAbstraction(new PerfectLink(Util.getChildAbstractionId(abstractionId, AbstractionType.PL), process)); // register app.pl abstraction
+        registerCoreAbstractions(process);
     }
 
     @Override
     public boolean handle(ProtoPayload.Message message) {
-        switch (message.getType()) {
-            case PL_DELIVER:
-                ProtoPayload.PlDeliver plDeliver = message.getPlDeliver();
-                return switch (plDeliver.getMessage().getType()) {
-                    case APP_BROADCAST -> {
-                        handleAppBroadcast(plDeliver.getMessage().getAppBroadcast());
-                        yield true;
-                    }
-                    case APP_READ -> {
-                        handleAppRead(plDeliver.getMessage().getAppRead());
-                        yield true;
-                    }
-                    case APP_WRITE -> {
-                        handleAppWrite(plDeliver.getMessage().getAppWrite());
-                        yield true;
-                    }
-                    default -> false;
-                };
-            case BEB_DELIVER:
-                ProtoPayload.Message innerMessage = message.getBebDeliver().getMessage();
-                triggerPlSend(innerMessage);
-                return true;
-            case NNAR_READ_RETURN:
+        return switch (message.getType()) {
+            case PL_DELIVER -> handlePlDeliver(message.getPlDeliver());
+            case BEB_DELIVER -> {
+                triggerPlSend(message.getBebDeliver().getMessage());
+                yield true;
+            }
+            case NNAR_READ_RETURN -> {
                 handleNnarReadReturn(message.getNnarReadReturn(), message.getFromAbstractionId());
-                return true;
-            case NNAR_WRITE_RETURN:
+                yield true;
+            }
+            case NNAR_WRITE_RETURN -> {
                 handleNnarWriteReturn(message.getFromAbstractionId());
-                return true;
-        }
-        return false;
+                yield true;
+            }
+            default -> {
+                log.warn("Unhandled message type: {}", message.getType());
+                yield false;
+            }
+        };
     }
 
+    private boolean handlePlDeliver(ProtoPayload.PlDeliver deliver) {
+        ProtoPayload.Message innerMessage = deliver.getMessage();
+        return switch (innerMessage.getType()) {
+            case APP_BROADCAST -> {
+                handleAppBroadcast(innerMessage.getAppBroadcast());
+                yield true;
+            }
+            case APP_READ -> {
+                handleAppRead(innerMessage.getAppRead());
+                yield true;
+            }
+            case APP_WRITE -> {
+                handleAppWrite(innerMessage.getAppWrite());
+                yield true;
+            }
+            default -> {
+                log.warn("Unhandled PL_DELIVER message type: {}", innerMessage.getType());
+                yield false;
+            }
+        };
+    }
+
+
     private void handleAppBroadcast(ProtoPayload.AppBroadcast appBroadcast) {
-        ProtoPayload.AppValue appValue = ProtoPayload.AppValue
+        var appValue = ProtoPayload.AppValue
                 .newBuilder()
                 .setValue(appBroadcast.getValue())
                 .build();
 
-        ProtoPayload.Message appValueMessage = ProtoPayload.Message
+        var appValueMessage = ProtoPayload.Message
                 .newBuilder()
                 .setType(ProtoPayload.Message.Type.APP_VALUE)
                 .setAppValue(appValue)
@@ -64,12 +75,12 @@ public class Application extends Abstraction {
                 .setSystemId(process.getSystemId())
                 .build();
 
-        ProtoPayload.BebBroadcast bebBroadcast = ProtoPayload.BebBroadcast
+        var bebBroadcast = ProtoPayload.BebBroadcast
                 .newBuilder()
                 .setMessage(appValueMessage)
                 .build();
 
-        ProtoPayload.Message bebBroadcastMessage = ProtoPayload.Message
+        var bebBroadcastMessage = ProtoPayload.Message
                 .newBuilder()
                 .setType(ProtoPayload.Message.Type.BEB_BROADCAST)
                 .setBebBroadcast(bebBroadcast)
@@ -85,11 +96,11 @@ public class Application extends Abstraction {
         String nnarAbstractionId = Util.getNamedAbstractionId(this.abstractionId, AbstractionType.NNAR, appRead.getRegister());
         process.registerAbstraction(new NNAtomicRegister(nnarAbstractionId, process));
 
-        ProtoPayload.NnarRead nnarRead = ProtoPayload.NnarRead
+        var nnarRead = ProtoPayload.NnarRead
                 .newBuilder()
                 .build();
 
-        ProtoPayload.Message nnarReadMessage = ProtoPayload.Message
+        var nnarReadMessage = ProtoPayload.Message
                 .newBuilder()
                 .setType(ProtoPayload.Message.Type.NNAR_READ)
                 .setNnarRead(nnarRead)
@@ -106,12 +117,12 @@ public class Application extends Abstraction {
         String nnarAbstractionId = Util.getNamedAbstractionId(this.abstractionId, AbstractionType.NNAR, appWrite.getRegister());
         process.registerAbstraction(new NNAtomicRegister(nnarAbstractionId, process));
 
-        ProtoPayload.NnarWrite nnarWrite = ProtoPayload.NnarWrite
+        var nnarWrite = ProtoPayload.NnarWrite
                 .newBuilder()
                 .setValue(appWrite.getValue())
                 .build();
 
-        ProtoPayload.Message nnarWriteMessage = ProtoPayload.Message
+        var nnarWriteMessage = ProtoPayload.Message
                 .newBuilder()
                 .setType(ProtoPayload.Message.Type.NNAR_WRITE)
                 .setNnarWrite(nnarWrite)
@@ -125,13 +136,13 @@ public class Application extends Abstraction {
 
 
     private void handleNnarReadReturn(ProtoPayload.NnarReadReturn nnarReadReturn, String fromAbstractionId) {
-        ProtoPayload.AppReadReturn appReadReturn = ProtoPayload.AppReadReturn
+        var appReadReturn = ProtoPayload.AppReadReturn
                 .newBuilder()
                 .setRegister(Util.getInternalNameFromAbstractionId(fromAbstractionId))
                 .setValue(nnarReadReturn.getValue())
                 .build();
 
-        ProtoPayload.Message appReadReturnMessage = ProtoPayload.Message
+        var appReadReturnMessage = ProtoPayload.Message
                 .newBuilder()
                 .setType(ProtoPayload.Message.Type.APP_READ_RETURN)
                 .setAppReadReturn(appReadReturn)
@@ -144,12 +155,12 @@ public class Application extends Abstraction {
     }
 
     private void handleNnarWriteReturn(String fromAbstractionId) {
-        ProtoPayload.AppWriteReturn appWriteReturn = ProtoPayload.AppWriteReturn
+        var appWriteReturn = ProtoPayload.AppWriteReturn
                 .newBuilder()
                 .setRegister(Util.getInternalNameFromAbstractionId(fromAbstractionId))
                 .build();
 
-        ProtoPayload.Message appWriteReturnMessage = ProtoPayload.Message
+        var appWriteReturnMessage = ProtoPayload.Message
                 .newBuilder()
                 .setType(ProtoPayload.Message.Type.APP_WRITE_RETURN)
                 .setAppWriteReturn(appWriteReturn)
@@ -162,21 +173,26 @@ public class Application extends Abstraction {
     }
 
     private void triggerPlSend(ProtoPayload.Message message) {
-        ProtoPayload.PlSend plSend = ProtoPayload.PlSend
+        var plSend = ProtoPayload.PlSend
                 .newBuilder()
                 .setDestination(process.getHub())
                 .setMessage(message)
                 .build();
 
-        ProtoPayload.Message plSendMessage = ProtoPayload.Message
+        var plSendMessage = ProtoPayload.Message
                 .newBuilder()
                 .setType(ProtoPayload.Message.Type.PL_SEND)
                 .setPlSend(plSend)
-                .setFromAbstractionId(this.abstractionId)
+                .setFromAbstractionId(abstractionId)
                 .setToAbstractionId(Util.getChildAbstractionId(this.abstractionId, AbstractionType.PL))
                 .setSystemId(process.getSystemId())
                 .build();
 
         process.addMessageToQueue(plSendMessage);
+    }
+
+    private void registerCoreAbstractions(Process process) {
+        process.registerAbstraction(new BestEffortBroadcast(Util.getChildAbstractionId(abstractionId, AbstractionType.BEB), process)); // register app.beb abstraction
+        process.registerAbstraction(new PerfectLink(Util.getChildAbstractionId(abstractionId, AbstractionType.PL), process)); // register app.pl abstraction
     }
 }

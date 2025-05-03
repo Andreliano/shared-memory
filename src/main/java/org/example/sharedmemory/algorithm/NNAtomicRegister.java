@@ -10,31 +10,30 @@ import org.example.sharedmemory.util.Util;
 
 import java.util.Comparator;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 @Slf4j
 public class NNAtomicRegister extends Abstraction {
-    private NNARValue nnarValue;
-    private int acks;
-    private ProtoPayload.Value writeVal;
-    private int readId;
-    private Map<String, NNARValue> readList;
-    private ProtoPayload.Value readVal;
-    private boolean isReading;
+    private NNARValue currentValue;
+    private int ackCount;
+    private ProtoPayload.Value writeValue;
+    private int currentReadId;
+    private final Map<String, NNARValue> readResponses;
+    private ProtoPayload.Value readResult;
+    private boolean isReadInProgress;
 
     public NNAtomicRegister(String abstractionId, Process process) {
         super(abstractionId, process);
-        nnarValue = new NNARValue();
-        acks = 0;
-        writeVal = Util.buildUndefinedValue();
-        readId = 0;
-        readList = new ConcurrentHashMap<>();
-        readVal = Util.buildUndefinedValue();
-        isReading = false;
+        currentValue = new NNARValue();
+        ackCount = 0;
+        writeValue = Util.buildUndefinedValue();
+        currentReadId = 0;
+        readResponses = new ConcurrentHashMap<>();
+        readResult = Util.buildUndefinedValue();
+        isReadInProgress = false;
 
-        process.registerAbstraction(new BestEffortBroadcast(Util.getChildAbstractionId(abstractionId, AbstractionType.BEB), process));
-        process.registerAbstraction(new PerfectLink(Util.getChildAbstractionId(abstractionId, AbstractionType.PL), process));
+        registerCoreAbstractions(process);
     }
 
     @Override
@@ -42,295 +41,213 @@ public class NNAtomicRegister extends Abstraction {
         switch (message.getType()) {
             case NNAR_READ:
                 log.info("READ!!!");
-                handleNnarRead();
+                handleReadRequest();
                 return true;
             case NNAR_WRITE:
                 log.info("WRITE!!!");
-                handleNnarWrite(message.getNnarWrite());
+                handleWriteRequest(message.getNnarWrite());
                 return true;
             case BEB_DELIVER:
                 log.info("BROADCAST!!!");
-                ProtoPayload.BebDeliver bebDeliver = message.getBebDeliver();
-                switch (bebDeliver.getMessage().getType()) {
-                    case NNAR_INTERNAL_READ:
-                        ProtoPayload.NnarInternalRead nnarInternalRead = bebDeliver.getMessage().getNnarInternalRead();
-                        handleBebDeliverInternalRead(bebDeliver.getSender(), nnarInternalRead.getReadId());
-                        return true;
-                    case NNAR_INTERNAL_WRITE:
-                        ProtoPayload.NnarInternalWrite nnarInternalWrite = bebDeliver.getMessage().getNnarInternalWrite();
-                        NNARValue value = new NNARValue(nnarInternalWrite.getTimestamp(), nnarInternalWrite.getWriterRank(), nnarInternalWrite.getValue());
-                        handleBebDeliverInternalWrite(bebDeliver.getSender(), nnarInternalWrite.getReadId(), value);
-                        return true;
-                    default:
-                        return false;
-                }
+                handleBebDeliver(message.getBebDeliver());
+                return true;
             case PL_DELIVER:
                 log.info("PL DELIVER!!!");
-                ProtoPayload.PlDeliver plDeliver = message.getPlDeliver();
-                switch (plDeliver.getMessage().getType()) {
-                    case NNAR_INTERNAL_VALUE:
-                        ProtoPayload.NnarInternalValue nnarInternalValue = plDeliver.getMessage().getNnarInternalValue();
-                        if (nnarInternalValue.getReadId() == this.readId) {
-                            NNARValue value = new NNARValue(nnarInternalValue.getTimestamp(), nnarInternalValue.getWriterRank(), nnarInternalValue.getValue());
-                            triggerPlDeliverValue(plDeliver.getSender(), nnarInternalValue.getReadId(), value);
-                            return true;
-                        } else {
-                            return nnarInternalValue.getReadId() < this.readId;
-                        }
-                    case NNAR_INTERNAL_ACK:
-                        ProtoPayload.NnarInternalAck nnarInternalAck = plDeliver.getMessage().getNnarInternalAck();
-                        if (nnarInternalAck.getReadId() == this.readId) {
-                            triggerPlDeliverAck();
-                            return true;
-                        } else {
-                            return nnarInternalAck.getReadId() < this.readId;
-                        }
-                    default:
-                        return false;
-                }
+                handlePlDeliver(message.getPlDeliver());
+                return true;
             default:
                 log.info("DEFAULT!!!");
                 return false;
         }
     }
 
-    private void handleNnarRead() {
-        readId++;
-
-        acks = 0;
-
-        readList = new ConcurrentHashMap<>();
-
-        isReading = true;
-
-        ProtoPayload.NnarInternalRead nnarInternalRead = ProtoPayload.NnarInternalRead
-                .newBuilder()
-                .setReadId(readId)
-                .build();
-
-        ProtoPayload.Message nnarInternalReadMessage = ProtoPayload.Message
-                .newBuilder()
-                .setType(ProtoPayload.Message.Type.NNAR_INTERNAL_READ)
-                .setNnarInternalRead(nnarInternalRead)
-                .setFromAbstractionId(this.abstractionId)
-                .setToAbstractionId(this.abstractionId)
-                .setSystemId(process.getSystemId())
-                .build();
-
-        triggerBebBroadcast(nnarInternalReadMessage);
+    private void handleReadRequest() {
+        log.info("Handling NNAR_READ");
+        initializeRead(true, Util.buildUndefinedValue());
     }
 
-    private void handleNnarWrite(ProtoPayload.NnarWrite nnarWrite) {
-        readId++;
-
-        writeVal = ProtoPayload.Value
-                .newBuilder()
-                .setV(nnarWrite.getValue().getV())
+    private void handleWriteRequest(ProtoPayload.NnarWrite write) {
+        log.info("Handling NNAR_WRITE");
+        ProtoPayload.Value value = ProtoPayload.Value.newBuilder()
+                .setV(write.getValue().getV())
                 .setDefined(true)
                 .build();
+        initializeRead(false, value);
+    }
 
-        acks = 0;
+    private void initializeRead(boolean isRead, ProtoPayload.Value valueToWrite) {
+        currentReadId++;
+        ackCount = 0;
+        readResponses.clear();
+        isReadInProgress = isRead;
+        writeValue = valueToWrite;
 
-        readList = new ConcurrentHashMap<>();
+        var internalRead = ProtoPayload.NnarInternalRead.newBuilder()
+                .setReadId(currentReadId)
+                .build();
 
-        ProtoPayload.NnarInternalRead nnarInternalRead = ProtoPayload.NnarInternalRead
-                .newBuilder()
+        var message = buildMessage(ProtoPayload.Message.Type.NNAR_INTERNAL_READ)
+                .setNnarInternalRead(internalRead)
+                .build();
+
+        broadcast(message);
+    }
+
+    private void handleBebDeliver(ProtoPayload.BebDeliver deliver) {
+        var msg = deliver.getMessage();
+        switch (msg.getType()) {
+            case NNAR_INTERNAL_READ -> {
+                handleInternalRead(deliver.getSender(), msg.getNnarInternalRead().getReadId());
+            }
+            case NNAR_INTERNAL_WRITE -> {
+                var write = msg.getNnarInternalWrite();
+                var val = new NNARValue(write.getTimestamp(), write.getWriterRank(), write.getValue());
+                handleInternalWrite(deliver.getSender(), write.getReadId(), val);
+            }
+            default -> {
+            }
+        }
+    }
+
+    private void handleInternalRead(ProtoPayload.ProcessId sender, int currentReadId) {
+        var response = ProtoPayload.NnarInternalValue.newBuilder()
+                .setReadId(currentReadId)
+                .setTimestamp(currentValue.getTimestamp())
+                .setWriterRank(currentValue.getWriterRank())
+                .setValue(currentValue.getValue())
+                .build();
+
+        sendPlMessage(sender, ProtoPayload.Message.Type.NNAR_INTERNAL_VALUE,
+                builder -> builder.setNnarInternalValue(response));
+    }
+
+    private void handleInternalWrite(ProtoPayload.ProcessId sender, int readId, NNARValue newValue) {
+        if (shouldUpdateValue(newValue)) {
+            currentValue = newValue;
+        }
+
+        var ack = ProtoPayload.NnarInternalAck.newBuilder()
                 .setReadId(readId)
                 .build();
 
-        ProtoPayload.Message nnarInternalReadMessage = ProtoPayload.Message
-                .newBuilder()
-                .setType(ProtoPayload.Message.Type.NNAR_INTERNAL_READ)
-                .setNnarInternalRead(nnarInternalRead)
-                .setFromAbstractionId(this.abstractionId)
-                .setToAbstractionId(this.abstractionId)
-                .setSystemId(process.getSystemId())
-                .build();
-
-        triggerBebBroadcast(nnarInternalReadMessage);
+        sendPlMessage(sender, ProtoPayload.Message.Type.NNAR_INTERNAL_ACK,
+                builder -> builder.setNnarInternalAck(ack));
     }
 
-    private void handleBebDeliverInternalRead(ProtoPayload.ProcessId sender, int incomingReadId) {
-        ProtoPayload.NnarInternalValue nnarInternalValue = ProtoPayload.NnarInternalValue
-                .newBuilder()
-                .setReadId(incomingReadId)
-                .setTimestamp(this.nnarValue.getTimestamp())
-                .setWriterRank(this.nnarValue.getWriterRank())
-                .setValue(this.nnarValue.getValue())
-                .build();
-
-        ProtoPayload.Message nnarInternalValueMessage = ProtoPayload.Message
-                .newBuilder()
-                .setType(ProtoPayload.Message.Type.NNAR_INTERNAL_VALUE)
-                .setNnarInternalValue(nnarInternalValue)
-                .setFromAbstractionId(this.abstractionId)
-                .setToAbstractionId(this.abstractionId)
-                .setSystemId(process.getSystemId())
-                .build();
-
-        ProtoPayload.PlSend plSend = ProtoPayload.PlSend
-                .newBuilder()
-                .setDestination(sender)
-                .setMessage(nnarInternalValueMessage)
-                .build();
-
-        ProtoPayload.Message plSendMessage = ProtoPayload.Message
-                .newBuilder()
-                .setType(ProtoPayload.Message.Type.PL_SEND)
-                .setPlSend(plSend)
-                .setFromAbstractionId(this.abstractionId)
-                .setToAbstractionId(Util.getChildAbstractionId(this.abstractionId, AbstractionType.PL))
-                .setSystemId(process.getSystemId())
-                .build();
-
-        process.addMessageToQueue(plSendMessage);
-    }
-
-    private void handleBebDeliverInternalWrite(ProtoPayload.ProcessId sender, int incomingReadId, NNARValue incomingVal) {
-        if (incomingVal.getTimestamp() > nnarValue.getTimestamp() || (incomingVal.getTimestamp() == nnarValue.getTimestamp() && incomingVal.getWriterRank() > nnarValue.getWriterRank())) {
-            nnarValue = incomingVal;
-        }
-
-        ProtoPayload.NnarInternalAck nnarInternalAck = ProtoPayload.NnarInternalAck
-                .newBuilder()
-                .setReadId(incomingReadId)
-                .build();
-
-        ProtoPayload.Message nnarInternalAckMessage = ProtoPayload.Message
-                .newBuilder()
-                .setType(ProtoPayload.Message.Type.NNAR_INTERNAL_ACK)
-                .setNnarInternalAck(nnarInternalAck)
-                .setFromAbstractionId(this.abstractionId)
-                .setToAbstractionId(this.abstractionId)
-                .setSystemId(process.getSystemId())
-                .build();
-
-        ProtoPayload.PlSend plSend = ProtoPayload.PlSend
-                .newBuilder()
-                .setDestination(sender)
-                .setMessage(nnarInternalAckMessage)
-                .build();
-
-        ProtoPayload.Message plSendMessage = ProtoPayload.Message
-                .newBuilder()
-                .setType(ProtoPayload.Message.Type.PL_SEND)
-                .setPlSend(plSend)
-                .setFromAbstractionId(this.abstractionId)
-                .setToAbstractionId(Util.getChildAbstractionId(this.abstractionId, AbstractionType.PL))
-                .setSystemId(process.getSystemId())
-                .build();
-
-        process.addMessageToQueue(plSendMessage);
-    }
-
-    private void triggerPlDeliverValue(ProtoPayload.ProcessId sender, int incomingReadId, NNARValue incomingValue) {
-        String senderId = sender.getOwner() + sender.getIndex();
-
-        this.readList.put(senderId, incomingValue);
-
-        if (this.readList.size() > (process.getProcesses().size() / 2)) {
-            NNARValue highestValue = getHighestNnarValue();
-
-            readVal = highestValue.getValue();
-
-            readList.clear();
-
-            ProtoPayload.NnarInternalWrite nnarInternalWrite;
-
-            if (isReading) {
-                nnarInternalWrite = ProtoPayload.NnarInternalWrite
-                        .newBuilder()
-                        .setReadId(incomingReadId)
-                        .setTimestamp(highestValue.getTimestamp())
-                        .setWriterRank(highestValue.getWriterRank())
-                        .setValue(highestValue.getValue())
-                        .build();
-            } else {
-                nnarInternalWrite = ProtoPayload.NnarInternalWrite
-                        .newBuilder()
-                        .setReadId(incomingReadId)
-                        .setTimestamp(highestValue.getTimestamp() + 1)
-                        .setWriterRank(process.getProcess().getRank())
-                        .setValue(this.writeVal)
-                        .build();
+    private void handlePlDeliver(ProtoPayload.PlDeliver deliver) {
+        var msg = deliver.getMessage();
+        switch (msg.getType()) {
+            case NNAR_INTERNAL_VALUE -> {
+                if (msg.getNnarInternalValue().getReadId() == currentReadId) {
+                    var value = msg.getNnarInternalValue();
+                    NNARValue val = new NNARValue(value.getTimestamp(), value.getWriterRank(), value.getValue());
+                    processValue(deliver.getSender(), value.getReadId(), val);
+                }
             }
+            case NNAR_INTERNAL_ACK -> {
+                var ack = msg.getNnarInternalAck();
+                if (ack.getReadId() == currentReadId) {
+                    processAck();
+                }
+            }
+            default -> {
+            }
+        }
+    }
 
-            ProtoPayload.Message nnarInternalWriteMessage = ProtoPayload.Message
-                    .newBuilder()
-                    .setType(ProtoPayload.Message.Type.NNAR_INTERNAL_WRITE)
-                    .setNnarInternalWrite(nnarInternalWrite)
-                    .setFromAbstractionId(this.abstractionId)
-                    .setToAbstractionId(this.abstractionId)
-                    .setSystemId(process.getSystemId())
+    private void processValue(ProtoPayload.ProcessId sender, int readId, NNARValue val) {
+        readResponses.put(sender.getOwner() + sender.getIndex(), val);
+
+        if (readResponses.size() > process.getProcesses().size() / 2) {
+            NNARValue highest = readResponses.values().stream()
+                    .max(Comparator.comparingInt(NNARValue::getTimestamp)
+                            .thenComparingInt(NNARValue::getWriterRank))
+                    .orElseThrow();
+
+            readResult = highest.getValue();
+            readResponses.clear();
+
+            var writeMsg = ProtoPayload.NnarInternalWrite.newBuilder()
+                    .setReadId(readId)
+                    .setTimestamp(isReadInProgress ? highest.getTimestamp() : highest.getTimestamp() + 1)
+                    .setWriterRank(isReadInProgress ? highest.getWriterRank() : process.getProcess().getRank())
+                    .setValue(isReadInProgress ? highest.getValue() : writeValue)
                     .build();
 
-            triggerBebBroadcast(nnarInternalWriteMessage);
+            broadcast(buildMessage(ProtoPayload.Message.Type.NNAR_INTERNAL_WRITE)
+                    .setNnarInternalWrite(writeMsg)
+                    .build());
         }
     }
 
-    private void triggerPlDeliverAck() {
-        acks++;
-        if (acks > (process.getProcesses().size() / 2)) {
-            acks = 0;
-            if (isReading) {
-                isReading = false;
-                ProtoPayload.NnarReadReturn nnarReadReturn = ProtoPayload.NnarReadReturn
-                        .newBuilder()
-                        .setValue(readVal)
-                        .build();
+    private void processAck() {
+        ackCount++;
+        if (ackCount > process.getProcesses().size() / 2) {
+            ackCount = 0;
+            ProtoPayload.Message msg;
 
-                ProtoPayload.Message nnarReadReturnMessage = ProtoPayload.Message
-                        .newBuilder()
-                        .setType(ProtoPayload.Message.Type.NNAR_READ_RETURN)
-                        .setNnarReadReturn(nnarReadReturn)
-                        .setFromAbstractionId(this.abstractionId)
+            if (isReadInProgress) {
+                isReadInProgress = false;
+                msg = buildMessage(ProtoPayload.Message.Type.NNAR_READ_RETURN)
+                        .setNnarReadReturn(ProtoPayload.NnarReadReturn.newBuilder().setValue(readResult).build())
                         .setToAbstractionId(Util.getParentAbstractionId(this.abstractionId))
-                        .setSystemId(process.getSystemId())
                         .build();
-
-                process.addMessageToQueue(nnarReadReturnMessage);
             } else {
-                ProtoPayload.NnarWriteReturn nnarWriteReturn = ProtoPayload.NnarWriteReturn
-                        .newBuilder()
-                        .build();
-
-                ProtoPayload.Message nnarWriteReturnMessage = ProtoPayload.Message
-                        .newBuilder()
-                        .setType(ProtoPayload.Message.Type.NNAR_WRITE_RETURN)
-                        .setNnarWriteReturn(nnarWriteReturn)
-                        .setFromAbstractionId(this.abstractionId)
+                msg = buildMessage(ProtoPayload.Message.Type.NNAR_WRITE_RETURN)
+                        .setNnarWriteReturn(ProtoPayload.NnarWriteReturn.newBuilder().build())
                         .setToAbstractionId(Util.getParentAbstractionId(this.abstractionId))
-                        .setSystemId(process.getSystemId())
                         .build();
-
-                process.addMessageToQueue(nnarWriteReturnMessage);
             }
+
+            process.addMessageToQueue(msg);
         }
     }
 
-    private void triggerBebBroadcast(ProtoPayload.Message message) {
-        ProtoPayload.BebBroadcast bebBroadcast = ProtoPayload.BebBroadcast
+    private void broadcast(ProtoPayload.Message msg) {
+        ProtoPayload.BebBroadcast broadcast = ProtoPayload.BebBroadcast.newBuilder()
+                .setMessage(msg)
+                .build();
+
+        process.addMessageToQueue(buildMessage(ProtoPayload.Message.Type.BEB_BROADCAST)
+                .setBebBroadcast(broadcast)
+                .setToAbstractionId(Util.getChildAbstractionId(this.abstractionId, AbstractionType.BEB))
+                .build());
+    }
+
+    private void sendPlMessage(ProtoPayload.ProcessId dest, ProtoPayload.Message.Type type,
+                               Consumer<ProtoPayload.Message.Builder> setPayload) {
+        var msgBuilder = buildMessage(type);
+        setPayload.accept(msgBuilder);
+        var message = msgBuilder.build();
+
+        var plSend = ProtoPayload.PlSend
                 .newBuilder()
+                .setDestination(dest)
                 .setMessage(message)
                 .build();
 
-        ProtoPayload.Message bebBroadcastMessage = ProtoPayload.Message
-                .newBuilder()
-                .setType(ProtoPayload.Message.Type.BEB_BROADCAST)
-                .setBebBroadcast(bebBroadcast)
-                .setFromAbstractionId(this.abstractionId)
-                .setToAbstractionId(Util.getChildAbstractionId(this.abstractionId, AbstractionType.BEB))
-                .setSystemId(process.getSystemId())
-                .build();
-
-        process.addMessageToQueue(bebBroadcastMessage);
+        process.addMessageToQueue(buildMessage(ProtoPayload.Message.Type.PL_SEND)
+                .setPlSend(plSend)
+                .setToAbstractionId(Util.getChildAbstractionId(this.abstractionId, AbstractionType.PL))
+                .build());
     }
 
-    private NNARValue getHighestNnarValue() {
-        return this.readList.values().stream()
-                .min(Comparator
-                        .comparingInt(NNARValue::getTimestamp)
-                        .thenComparingInt(NNARValue::getWriterRank))
-                .orElseThrow(() -> new NoSuchElementException("No NNARValue found"));
+    private ProtoPayload.Message.Builder buildMessage(ProtoPayload.Message.Type type) {
+        return ProtoPayload.Message.newBuilder()
+                .setType(type)
+                .setFromAbstractionId(this.abstractionId)
+                .setSystemId(process.getSystemId());
+    }
+
+    private boolean shouldUpdateValue(NNARValue val) {
+        return val.getTimestamp() > currentValue.getTimestamp() ||
+                (val.getTimestamp() == currentValue.getTimestamp() &&
+                        val.getWriterRank() > currentValue.getWriterRank());
+    }
+
+    private void registerCoreAbstractions(Process process) {
+        log.info("Registering abstractions for process: {}", process.getSystemId());
+        process.registerAbstraction(new BestEffortBroadcast(Util.getChildAbstractionId(abstractionId, AbstractionType.BEB), process));
+        process.registerAbstraction(new PerfectLink(Util.getChildAbstractionId(abstractionId, AbstractionType.PL), process));
     }
 }

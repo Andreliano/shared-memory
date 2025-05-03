@@ -35,7 +35,7 @@ public class BestEffortBroadcast extends Abstraction {
                     .setMessage(bebBroadcast.getMessage())
                     .build();
 
-            ProtoPayload.Message plSendMessage = ProtoPayload.Message
+            var plSendMessage = ProtoPayload.Message
                     .newBuilder()
                     .setType(ProtoPayload.Message.Type.PL_SEND)
                     .setPlSend(plSend)
@@ -49,13 +49,13 @@ public class BestEffortBroadcast extends Abstraction {
     }
 
     private void triggerBebDeliver(ProtoPayload.Message appValueMessage, ProtoPayload.ProcessId sender) {
-        ProtoPayload.BebDeliver bebDeliver = ProtoPayload.BebDeliver
+        var bebDeliver = ProtoPayload.BebDeliver
                 .newBuilder()
                 .setMessage(appValueMessage)
                 .setSender(sender)
                 .build();
 
-        ProtoPayload.Message bebDeliverMessage = ProtoPayload.Message
+        var bebDeliverMessage = ProtoPayload.Message
                 .newBuilder()
                 .setType(ProtoPayload.Message.Type.BEB_DELIVER)
                 .setBebDeliver(bebDeliver)
