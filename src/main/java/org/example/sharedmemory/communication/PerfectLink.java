@@ -1,5 +1,6 @@
 package org.example.sharedmemory.communication;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.sharedmemory.algorithm.Abstraction;
 import org.example.sharedmemory.domain.Process;
 import org.example.sharedmemory.util.Util;
@@ -7,6 +8,7 @@ import org.example.sharedmemory.util.Util;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 public class PerfectLink extends Abstraction {
     public PerfectLink(String abstractionId, Process process) {
         super(abstractionId, process);
@@ -16,10 +18,14 @@ public class PerfectLink extends Abstraction {
     public boolean handle(ProtoPayload.Message message) {
         return switch (message.getType()) {
             case PL_SEND -> {
+                log.info("[PerfectLink] Handling PL_SEND from '{}'", message.getFromAbstractionId());
                 handlePlSend(message.getPlSend(), message.getToAbstractionId());
                 yield true;
             }
             case NETWORK_MESSAGE -> {
+                log.info("[PerfectLink] Handling NETWORK_MESSAGE from host={} port={}",
+                        message.getNetworkMessage().getSenderHost(),
+                        message.getNetworkMessage().getSenderListeningPort());
                 triggerPlDeliver(message.getNetworkMessage(), Util.getParentAbstractionId(message.getToAbstractionId()));
                 yield true;
             }
@@ -30,6 +36,9 @@ public class PerfectLink extends Abstraction {
     private void handlePlSend(ProtoPayload.PlSend plSendMessage, String toAbstractionId) {
         ProtoPayload.ProcessId sender = process.getProcess();
         ProtoPayload.ProcessId destination = plSendMessage.getDestination();
+
+        log.info("[PerfectLink] Sending message from {}:{} to {}:{} | Abstraction: {}",
+                sender.getHost(), sender.getPort(), destination.getHost(), destination.getPort(), toAbstractionId);
 
         var networkMessage = ProtoPayload.NetworkMessage
                 .newBuilder()
@@ -68,6 +77,9 @@ public class PerfectLink extends Abstraction {
                 .setToAbstractionId(toAbstractionId)
                 .setSystemId(process.getSystemId())
                 .build();
+
+        log.info("[PerfectLink] Delivering message to abstraction: {} | Message type: {}",
+                toAbstractionId, networkMessage.getMessage().getType());
 
         process.addMessageToQueue(message);
     }
