@@ -1,6 +1,6 @@
 package org.example.sharedmemory.domain;
 
-import lombok.Getter;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.example.sharedmemory.algorithm.Abstraction;
 import org.example.sharedmemory.algorithm.Application;
@@ -15,7 +15,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
-@Getter
+@Data
 @Slf4j
 public class Process implements Runnable {
 
