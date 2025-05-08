@@ -84,8 +84,13 @@ public class NNAtomicRegister extends Abstraction {
                 .setReadId(currentReadId)
                 .build();
 
-        var message = buildMessage(ProtoPayload.Message.Type.NNAR_INTERNAL_READ)
+        var message = ProtoPayload.Message
+                .newBuilder()
+                .setType(ProtoPayload.Message.Type.NNAR_INTERNAL_READ)
                 .setNnarInternalRead(internalRead)
+                .setFromAbstractionId(this.abstractionId)
+                .setToAbstractionId(this.abstractionId)
+                .setSystemId(process.getSystemId())
                 .build();
 
         broadcast(message);
@@ -177,9 +182,17 @@ public class NNAtomicRegister extends Abstraction {
             log.info("Broadcasting internal write for readId {} with value = {}", readId,
                     writeMsg.getValue().getV());
 
-            broadcast(buildMessage(ProtoPayload.Message.Type.NNAR_INTERNAL_WRITE)
+
+            ProtoPayload.Message nnarInternalWriteMessage = ProtoPayload.Message
+                    .newBuilder()
+                    .setType(ProtoPayload.Message.Type.NNAR_INTERNAL_WRITE)
                     .setNnarInternalWrite(writeMsg)
-                    .build());
+                    .setFromAbstractionId(this.abstractionId)
+                    .setToAbstractionId(this.abstractionId)
+                    .setSystemId(process.getSystemId())
+                    .build();
+
+            broadcast(nnarInternalWriteMessage);
         }
     }
 
@@ -191,16 +204,28 @@ public class NNAtomicRegister extends Abstraction {
 
             if (isReadInProgress) {
                 isReadInProgress = false;
-                msg = buildMessage(ProtoPayload.Message.Type.NNAR_READ_RETURN)
+
+                msg = ProtoPayload.Message
+                        .newBuilder()
+                        .setType(ProtoPayload.Message.Type.NNAR_READ_RETURN)
                         .setNnarReadReturn(ProtoPayload.NnarReadReturn.newBuilder().setValue(readResult).build())
+                        .setFromAbstractionId(this.abstractionId)
                         .setToAbstractionId(Util.getParentAbstractionId(this.abstractionId))
+                        .setSystemId(process.getSystemId())
                         .build();
+
                 log.info("Completed NNAR_READ with value = {}", readResult.getV());
             } else {
-                msg = buildMessage(ProtoPayload.Message.Type.NNAR_WRITE_RETURN)
-                        .setNnarWriteReturn(ProtoPayload.NnarWriteReturn.newBuilder().build())
+
+                msg = ProtoPayload.Message
+                        .newBuilder()
+                        .setType(ProtoPayload.Message.Type.NNAR_READ_RETURN)
+                        .setNnarReadReturn(ProtoPayload.NnarReadReturn.newBuilder().setValue(readResult).build())
+                        .setFromAbstractionId(this.abstractionId)
                         .setToAbstractionId(Util.getParentAbstractionId(this.abstractionId))
+                        .setSystemId(process.getSystemId())
                         .build();
+
                 log.info("Completed NNAR_WRITE");
             }
 
@@ -213,10 +238,16 @@ public class NNAtomicRegister extends Abstraction {
                 .setMessage(msg)
                 .build();
 
-        process.addMessageToQueue(buildMessage(ProtoPayload.Message.Type.BEB_BROADCAST)
+        ProtoPayload.Message bebBroadcastMessage = ProtoPayload.Message
+                .newBuilder()
+                .setType(ProtoPayload.Message.Type.BEB_BROADCAST)
                 .setBebBroadcast(broadcast)
+                .setFromAbstractionId(this.abstractionId)
                 .setToAbstractionId(Util.getChildAbstractionId(this.abstractionId, AbstractionType.BEB))
-                .build());
+                .setSystemId(process.getSystemId())
+                .build();
+
+        process.addMessageToQueue(bebBroadcastMessage);
     }
 
     private void sendPlMessage(ProtoPayload.ProcessId dest, ProtoPayload.Message.Type type,
@@ -231,10 +262,16 @@ public class NNAtomicRegister extends Abstraction {
                 .setMessage(message)
                 .build();
 
-        process.addMessageToQueue(buildMessage(ProtoPayload.Message.Type.PL_SEND)
+        ProtoPayload.Message plSendMessage = ProtoPayload.Message
+                .newBuilder()
+                .setType(ProtoPayload.Message.Type.PL_SEND)
                 .setPlSend(plSend)
+                .setFromAbstractionId(this.abstractionId)
                 .setToAbstractionId(Util.getChildAbstractionId(this.abstractionId, AbstractionType.PL))
-                .build());
+                .setSystemId(process.getSystemId())
+                .build();
+
+        process.addMessageToQueue(plSendMessage);
     }
 
     private ProtoPayload.Message.Builder buildMessage(ProtoPayload.Message.Type type) {
