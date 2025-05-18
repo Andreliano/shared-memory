@@ -219,7 +219,7 @@ public class NNAtomicRegister extends Abstraction {
 
                 msg = ProtoPayload.Message
                         .newBuilder()
-                        .setType(ProtoPayload.Message.Type.NNAR_READ_RETURN)
+                        .setType(ProtoPayload.Message.Type.NNAR_WRITE_RETURN)
                         .setNnarReadReturn(ProtoPayload.NnarReadReturn.newBuilder().setValue(readResult).build())
                         .setFromAbstractionId(this.abstractionId)
                         .setToAbstractionId(Util.getParentAbstractionId(this.abstractionId))
