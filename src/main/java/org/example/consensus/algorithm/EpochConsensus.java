@@ -1,11 +1,11 @@
-package org.example.sharedmemory.algorithm;
+package org.example.consensus.algorithm;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.sharedmemory.communication.PerfectLink;
-import org.example.sharedmemory.communication.ProtoPayload;
-import org.example.sharedmemory.domain.AbstractionType;
-import org.example.sharedmemory.domain.EpochState;
-import org.example.sharedmemory.util.Util;
+import org.example.consensus.communication.PerfectLink;
+import org.example.consensus.communication.ProtoPayload;
+import org.example.consensus.domain.AbstractionType;
+import org.example.consensus.domain.EpochState;
+import org.example.consensus.util.Util;
 
 import java.util.Comparator;
 import java.util.HashMap;
@@ -23,7 +23,7 @@ public class EpochConsensus extends Abstraction {
     private int accepted;
     private boolean halted;
 
-    public EpochConsensus(String abstractionId, org.example.sharedmemory.domain.Process process, int ets, ProtoPayload.ProcessId leader, EpochState state) {
+    public EpochConsensus(String abstractionId, org.example.consensus.domain.Process process, int ets, ProtoPayload.ProcessId leader, EpochState state) {
         super(abstractionId, process);
         this.ets = ets;
         this.leader = leader;

@@ -2,7 +2,7 @@
 // source: communication-protocol.proto
 // Protobuf Java Version: 4.26.0
 
-package org.example.sharedmemory.communication;
+package org.example.consensus.communication;
 
 public final class ProtoPayload {
   private ProtoPayload() {}

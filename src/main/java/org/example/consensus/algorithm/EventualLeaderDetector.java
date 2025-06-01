@@ -1,9 +1,9 @@
-package org.example.sharedmemory.algorithm;
+package org.example.consensus.algorithm;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.sharedmemory.communication.ProtoPayload;
-import org.example.sharedmemory.domain.AbstractionType;
-import org.example.sharedmemory.util.Util;
+import org.example.consensus.communication.ProtoPayload;
+import org.example.consensus.domain.AbstractionType;
+import org.example.consensus.util.Util;
 
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -14,7 +14,7 @@ public class EventualLeaderDetector extends Abstraction {
     private final Set<ProtoPayload.ProcessId> suspected;
     private ProtoPayload.ProcessId leader;
 
-    public EventualLeaderDetector(String abstractionId, org.example.sharedmemory.domain.Process process) {
+    public EventualLeaderDetector(String abstractionId, org.example.consensus.domain.Process process) {
         super(abstractionId, process);
         suspected = new CopyOnWriteArraySet<>();
 

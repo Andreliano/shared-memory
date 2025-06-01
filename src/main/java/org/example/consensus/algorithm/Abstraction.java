@@ -1,9 +1,9 @@
-package org.example.sharedmemory.algorithm;
+package org.example.consensus.algorithm;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.example.sharedmemory.communication.ProtoPayload;
-import org.example.sharedmemory.domain.Process;
+import org.example.consensus.communication.ProtoPayload;
+import org.example.consensus.domain.Process;
 
 @Getter
 @AllArgsConstructor

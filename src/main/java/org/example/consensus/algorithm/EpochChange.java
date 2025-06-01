@@ -1,9 +1,9 @@
-package org.example.sharedmemory.algorithm;
+package org.example.consensus.algorithm;
 
-import org.example.sharedmemory.communication.PerfectLink;
-import org.example.sharedmemory.communication.ProtoPayload;
-import org.example.sharedmemory.domain.AbstractionType;
-import org.example.sharedmemory.util.Util;
+import org.example.consensus.communication.PerfectLink;
+import org.example.consensus.communication.ProtoPayload;
+import org.example.consensus.domain.AbstractionType;
+import org.example.consensus.util.Util;
 
 public class EpochChange extends Abstraction {
 
@@ -11,7 +11,7 @@ public class EpochChange extends Abstraction {
     private int lastTimestamp;
     private int timestamp;
 
-    public EpochChange(String abstractionId, org.example.sharedmemory.domain.Process process) {
+    public EpochChange(String abstractionId, org.example.consensus.domain.Process process) {
         super(abstractionId, process);
         trusted = Util.getMaxRankedProcess(process.getProcesses());
         lastTimestamp = 0;

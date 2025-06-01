@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>org.example</groupId>
-    <artifactId>shared-memory</artifactId>
+    <artifactId>consensus</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>shared-memory</name>
-    <description>shared-memory</description>
+    <name>consensus</name>
+    <description>consensus</description>
     <url/>
     <licenses>
         <license/>

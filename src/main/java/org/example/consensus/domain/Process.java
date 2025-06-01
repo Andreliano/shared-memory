@@ -1,14 +1,14 @@
-package org.example.sharedmemory.domain;
+package org.example.consensus.domain;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.example.sharedmemory.algorithm.Abstraction;
-import org.example.sharedmemory.algorithm.Application;
-import org.example.sharedmemory.algorithm.NNAtomicRegister;
-import org.example.sharedmemory.communication.MessageReceiver;
-import org.example.sharedmemory.communication.MessageSender;
-import org.example.sharedmemory.communication.ProtoPayload;
-import org.example.sharedmemory.util.Util;
+import org.example.consensus.algorithm.Abstraction;
+import org.example.consensus.algorithm.Application;
+import org.example.consensus.algorithm.NNAtomicRegister;
+import org.example.consensus.communication.MessageReceiver;
+import org.example.consensus.communication.MessageSender;
+import org.example.consensus.communication.ProtoPayload;
+import org.example.consensus.util.Util;
 
 import java.util.*;
 import java.util.concurrent.BlockingQueue;

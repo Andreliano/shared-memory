@@ -1,7 +1,7 @@
-package org.example.sharedmemory.util;
+package org.example.consensus.util;
 
-import org.example.sharedmemory.communication.ProtoPayload;
-import org.example.sharedmemory.domain.AbstractionType;
+import org.example.consensus.communication.ProtoPayload;
+import org.example.consensus.domain.AbstractionType;
 
 import java.util.Collection;
 import java.util.Comparator;

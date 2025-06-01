@@ -1,9 +1,9 @@
-package org.example.sharedmemory.communication;
+package org.example.consensus.communication;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.sharedmemory.algorithm.Abstraction;
-import org.example.sharedmemory.domain.Process;
-import org.example.sharedmemory.util.Util;
+import org.example.consensus.algorithm.Abstraction;
+import org.example.consensus.domain.Process;
+import org.example.consensus.util.Util;
 
 import java.util.Optional;
 import java.util.UUID;

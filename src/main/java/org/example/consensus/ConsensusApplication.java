@@ -1,8 +1,8 @@
-package org.example.sharedmemory;
+package org.example.consensus;
 
-import org.example.sharedmemory.communication.ProtoPayload;
-import org.example.sharedmemory.domain.Process;
-import org.example.sharedmemory.util.Util;
+import org.example.consensus.communication.ProtoPayload;
+import org.example.consensus.domain.Process;
+import org.example.consensus.util.Util;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -14,10 +14,10 @@ import java.util.Arrays;
 import java.util.List;
 
 @SpringBootApplication
-public class SharedMemoryApplication {
+public class ConsensusApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(SharedMemoryApplication.class, args);
+        SpringApplication.run(ConsensusApplication.class, args);
     }
 }
 

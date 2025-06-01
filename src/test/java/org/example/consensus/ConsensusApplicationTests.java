@@ -1,10 +1,10 @@
-package org.example.sharedmemory;
+package org.example.consensus;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class SharedMemoryApplicationTests {
+class ConsensusApplicationTests {
 
     @Test
     void contextLoads() {

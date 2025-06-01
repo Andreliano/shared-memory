@@ -1,4 +1,4 @@
-package org.example.sharedmemory.domain;
+package org.example.consensus.domain;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

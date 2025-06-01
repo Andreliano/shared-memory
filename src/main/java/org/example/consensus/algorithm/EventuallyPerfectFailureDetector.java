@@ -1,10 +1,10 @@
-package org.example.sharedmemory.algorithm;
+package org.example.consensus.algorithm;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.sharedmemory.communication.PerfectLink;
-import org.example.sharedmemory.communication.ProtoPayload;
-import org.example.sharedmemory.domain.AbstractionType;
-import org.example.sharedmemory.util.Util;
+import org.example.consensus.communication.PerfectLink;
+import org.example.consensus.communication.ProtoPayload;
+import org.example.consensus.domain.AbstractionType;
+import org.example.consensus.util.Util;
 
 import java.util.Set;
 import java.util.Timer;
@@ -20,7 +20,7 @@ public class EventuallyPerfectFailureDetector extends Abstraction {
 
     private static final int DELTA = 100;
 
-    public EventuallyPerfectFailureDetector(String abstractionId, org.example.sharedmemory.domain.Process process) {
+    public EventuallyPerfectFailureDetector(String abstractionId, org.example.consensus.domain.Process process) {
         super(abstractionId, process);
         alive = new CopyOnWriteArraySet<>(process.getProcesses());
         suspected = new CopyOnWriteArraySet<>();

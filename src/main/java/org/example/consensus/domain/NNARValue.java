@@ -1,10 +1,10 @@
-package org.example.sharedmemory.domain;
+package org.example.consensus.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import org.example.sharedmemory.communication.ProtoPayload;
-import org.example.sharedmemory.util.Util;
+import org.example.consensus.communication.ProtoPayload;
+import org.example.consensus.util.Util;
 
 @Getter
 @Setter

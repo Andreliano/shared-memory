@@ -1,12 +1,12 @@
-package org.example.sharedmemory.algorithm;
+package org.example.consensus.algorithm;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.sharedmemory.communication.PerfectLink;
-import org.example.sharedmemory.communication.ProtoPayload;
-import org.example.sharedmemory.domain.AbstractionType;
-import org.example.sharedmemory.domain.NNARValue;
-import org.example.sharedmemory.domain.Process;
-import org.example.sharedmemory.util.Util;
+import org.example.consensus.communication.PerfectLink;
+import org.example.consensus.communication.ProtoPayload;
+import org.example.consensus.domain.AbstractionType;
+import org.example.consensus.domain.NNARValue;
+import org.example.consensus.domain.Process;
+import org.example.consensus.util.Util;
 
 import java.util.Comparator;
 import java.util.Map;

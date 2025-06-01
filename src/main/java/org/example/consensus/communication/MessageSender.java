@@ -1,4 +1,4 @@
-package org.example.sharedmemory.communication;
+package org.example.consensus.communication;
 
 import lombok.extern.slf4j.Slf4j;
 

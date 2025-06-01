@@ -1,4 +1,4 @@
-package org.example.sharedmemory.communication;
+package org.example.consensus.communication;
 
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
