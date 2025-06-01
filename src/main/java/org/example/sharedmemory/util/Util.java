@@ -3,6 +3,9 @@ package org.example.sharedmemory.util;
 import org.example.sharedmemory.communication.ProtoPayload;
 import org.example.sharedmemory.domain.AbstractionType;
 
+import java.util.Collection;
+import java.util.Comparator;
+
 public class Util {
     public static final String HUB_ID = "hub";
 
@@ -31,5 +34,11 @@ public class Util {
                 .newBuilder()
                 .setDefined(false)
                 .build();
+    }
+
+    public static ProtoPayload.ProcessId getMaxRankedProcess(Collection<ProtoPayload.ProcessId> processes) {
+        return processes.stream()
+                .max(Comparator.comparing(ProtoPayload.ProcessId::getRank))
+                .orElse(null);
     }
 }

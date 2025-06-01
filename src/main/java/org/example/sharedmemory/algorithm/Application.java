@@ -38,6 +38,11 @@ public class Application extends Abstraction {
                 handleNnarWriteReturn(message.getFromAbstractionId());
                 yield true;
             }
+            case UC_DECIDE -> {
+                log.info("Received UC_DECIDE from: {}", message.getFromAbstractionId());
+                handleUcDecide(message.getUcDecide());
+                yield true;
+            }
             default -> {
                 log.warn("Unhandled message type: {}", message.getType());
                 yield false;
@@ -62,6 +67,11 @@ public class Application extends Abstraction {
             case APP_WRITE -> {
                 log.info("Handling APP_WRITE for register: {}, value: {}", innerMessage.getAppWrite().getRegister(), innerMessage.getAppWrite().getValue());
                 handleAppWrite(innerMessage.getAppWrite());
+                yield true;
+            }
+            case APP_PROPOSE -> {
+                log.info("Handling APP_PROPOSE with value: {}", innerMessage.getAppPropose().getValue());
+                handleAppPropose(innerMessage.getAppPropose());
                 yield true;
             }
             default -> {
@@ -154,6 +164,30 @@ public class Application extends Abstraction {
         process.addMessageToQueue(nnarWriteMessage);
     }
 
+    private void handleAppPropose(ProtoPayload.AppPropose appPropose) {
+        // register app.uc[topic] abstraction
+
+        String uniformConsensusAbstractionId = Util.getNamedAbstractionId(this.abstractionId, AbstractionType.UC, appPropose.getTopic());
+        log.info("Handling APP_PROPOSE for value: {}, topic: {}, abstractionId: {}", appPropose.getValue(), appPropose.getTopic(), uniformConsensusAbstractionId);
+
+        process.registerAbstraction(new UniformConsensus(uniformConsensusAbstractionId, process));
+
+        ProtoPayload.UcPropose ucPropose = ProtoPayload.UcPropose
+                .newBuilder()
+                .setValue(appPropose.getValue())
+                .build();
+
+        ProtoPayload.Message ucProposeMessage = ProtoPayload.Message
+                .newBuilder()
+                .setType(ProtoPayload.Message.Type.UC_PROPOSE)
+                .setUcPropose(ucPropose)
+                .setFromAbstractionId(this.abstractionId)
+                .setToAbstractionId(Util.getNamedAbstractionId(this.abstractionId, AbstractionType.UC, appPropose.getTopic()))
+                .setSystemId(process.getSystemId())
+                .build();
+
+        process.addMessageToQueue(ucProposeMessage);
+    }
 
     private void handleNnarReadReturn(ProtoPayload.NnarReadReturn nnarReadReturn, String fromAbstractionId) {
         String register = Util.getInternalNameFromAbstractionId(fromAbstractionId);
@@ -196,6 +230,24 @@ public class Application extends Abstraction {
                 .build();
 
         triggerPlSend(appWriteReturnMessage);
+    }
+
+    private void handleUcDecide(ProtoPayload.UcDecide ucDecide) {
+        ProtoPayload.AppDecide appDecide = ProtoPayload.AppDecide
+                .newBuilder()
+                .setValue(ucDecide.getValue())
+                .build();
+
+        ProtoPayload.Message appDecideMessage = ProtoPayload.Message
+                .newBuilder()
+                .setType(ProtoPayload.Message.Type.APP_DECIDE)
+                .setAppDecide(appDecide)
+                .setFromAbstractionId(this.abstractionId)
+                .setToAbstractionId(Util.HUB_ID)
+                .setSystemId(process.getSystemId())
+                .build();
+
+        triggerPlSend(appDecideMessage);
     }
 
     private void triggerPlSend(ProtoPayload.Message message) {

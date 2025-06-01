@@ -108,6 +108,7 @@ public class Process implements Runnable {
         ProtoPayload.ProcInitializeSystem procInitializeSystem = message.getProcInitializeSystem();
 
         this.processes = procInitializeSystem.getProcessesList();
+        log.info("ALL PROCESSES: " + this.processes);
 
         this.process = getProcessByHostAndPort(this.process.getHost(), this.process.getPort()).get();
 
@@ -166,9 +167,11 @@ public class Process implements Runnable {
     }
 
     private boolean shouldKeepMessage(ProtoPayload.Message message) {
-        return ProtoPayload.Message.Type.PL_DELIVER.equals(message.getType()) && (
-                ProtoPayload.Message.Type.NNAR_INTERNAL_VALUE.equals(message.getPlDeliver().getMessage().getType()) ||
-                        ProtoPayload.Message.Type.NNAR_INTERNAL_ACK.equals(message.getPlDeliver().getMessage().getType())
-        );
+        return ProtoPayload.Message.Type.EP_ABORTED.equals(message.getType()) ||
+                ProtoPayload.Message.Type.EP_DECIDE.equals(message.getType()) ||
+                ProtoPayload.Message.Type.PL_DELIVER.equals(message.getType()) && (
+                        ProtoPayload.Message.Type.NNAR_INTERNAL_VALUE.equals(message.getPlDeliver().getMessage().getType()) ||
+                                ProtoPayload.Message.Type.NNAR_INTERNAL_ACK.equals(message.getPlDeliver().getMessage().getType())
+                );
     }
 }
